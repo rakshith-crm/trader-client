@@ -1,4 +1,4 @@
-import * as React from "react";
+import React, { useEffect, useState } from "react";
 import { styled, createTheme, ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import MuiDrawer from "@mui/material/Drawer";
@@ -12,11 +12,11 @@ import InsertChartRoundedIcon from "@mui/icons-material/InsertChartRounded";
 import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ListItems from "./ListItems";
-import { Routes, Route, Navigate } from "react-router-dom";
-import Favourites from "./Favourites";
-import Home from "./Home";
-import Profile from "./Profile";
-import Suggestions from "./Suggestions";
+import { Alert, AlertColor, Avatar, Snackbar } from "@mui/material";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import RequestForm from "./RequestForm";
+import Logout from "./Logout";
 
 const drawerWidth: number = 240;
 
@@ -68,17 +68,59 @@ const Drawer = styled(MuiDrawer, {
   },
 }));
 
+interface DashboardProps {
+  component: React.ReactNode;
+}
 // TODO remove, this demo shouldn't need to reset the theme.
 const defaultTheme = createTheme();
 
-const Dashboard = () => {
-  const [open, setOpen] = React.useState(true);
+const Dashboard = ({ component }: DashboardProps) => {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(true);
+  const [user, setUser] = useState({});
+  const [message, setMessage] = useState("");
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [variant, setVariant] = useState<AlertColor>("error");
+
   const toggleDrawer = () => {
     setOpen(!open);
   };
+  useEffect(() => {
+    async function fetchMyAPI() {
+      await axios
+        .get("http://localhost:8000/auth/user", {
+          withCredentials: true,
+          headers: {
+            "Content-type": "application/json",
+          },
+        })
+        .then((res) => {
+          console.log(res.data);
+          setUser(res.data);
+          setMessage("Authenticated");
+          setVariant("success");
+        })
+        .catch(({ error, response }) => {
+          console.log(response.data);
+          setMessage(response.data.detail);
+          setVariant("error");
+          navigate("/login");
+        });
+    }
+
+    fetchMyAPI();
+    setAlertOpen(true);
+  }, []);
 
   return (
     <ThemeProvider theme={defaultTheme}>
+      <Snackbar
+        open={alertOpen}
+        autoHideDuration={6000}
+        onClose={() => setAlertOpen(false)}
+      >
+        <Alert severity={variant}>{message}</Alert>
+      </Snackbar>
       <Box sx={{ display: "flex" }}>
         <CssBaseline />
 
@@ -100,8 +142,9 @@ const Dashboard = () => {
             >
               <MenuIcon />
             </IconButton>
-            <InsertChartRoundedIcon />
-
+            <Avatar sx={{ m: 1, bgcolor: "secondary.main" }}>
+              <InsertChartRoundedIcon />
+            </Avatar>
             <Typography
               component="h1"
               variant="h6"
@@ -111,6 +154,7 @@ const Dashboard = () => {
             >
               Trader
             </Typography>
+            <RequestForm />
           </Toolbar>
         </AppBar>
         <Drawer variant="permanent" open={open}>
@@ -143,15 +187,8 @@ const Dashboard = () => {
             overflow: "auto",
           }}
         >
-          {/* Dashboard navigator drawer code ends */}
           <Toolbar />
-          <Routes>
-            <Route path="/home" element={<Home />} />
-            <Route path="/favourites" element={<Favourites />} />
-            <Route path="/suggestions" element={<Suggestions />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="*" element={<Navigate to="/home" replace />} />
-          </Routes>
+          {component}
         </Box>
       </Box>
     </ThemeProvider>
